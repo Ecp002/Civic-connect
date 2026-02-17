@@ -1,0 +1,15 @@
+# Environment variables
+js/config.js
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor directories
+.vscode/
+.idea/
+.env
+.env.*
+
+# Logs
+*.log

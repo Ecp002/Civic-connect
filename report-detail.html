@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report Details - CivicConnect</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <nav class="navbar" id="navbar">
+        <div class="nav-container">
+            <div class="nav-brand" onclick="window.location.href='index.html'">
+                <img src="logo.png" alt="CivicConnect Logo" style="height: 32px; width: auto; margin-right: 8px; cursor: pointer;">
+                <h2>CivicConnect</h2>
+            </div>
+            
+            <div class="nav-menu" id="navMenu">
+                <a href="index.html" class="nav-link">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                    </svg>
+                    Home
+                </a>
+                <a href="report.html" class="nav-link">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 20h9"></path>
+                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                    </svg>
+                    Report
+                </a>
+                <a href="dashboard.html" class="nav-link">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="14" width="7" height="7"></rect>
+                        <rect x="3" y="14" width="7" height="7"></rect>
+                    </svg>
+                    My Reports
+                </a>
+                <a href="#" class="nav-link nav-cta" id="authLink">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M13.8 12H3"></path>
+                    </svg>
+                    Logout
+                </a>
+            </div>
+
+            <div class="mobile-menu-btn" id="mobileMenuBtn">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </nav>
+
+    <main class="dashboard-content fade-in">
+        <div class="container">
+            <div style="margin-bottom: 24px;">
+                <a href="dashboard.html" style="color: #1E3A8A; text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="19" y1="12" x2="5" y2="12"></line>
+                        <polyline points="12 19 5 12 12 5"></polyline>
+                    </svg>
+                    Back to Dashboard
+                </a>
+            </div>
+
+            <div id="loadingState" class="loading-state">
+                <div class="spinner"></div>
+                <p>Loading report details...</p>
+            </div>
+
+            <div id="reportDetail"></div>
+        </div>
+    </main>
+
+    <div id="toast" class="toast"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        const loadingState = document.getElementById('loadingState');
+        const reportDetail = document.getElementById('reportDetail');
+
+        async function loadReportDetail() {
+            const session = await requireAuth();
+            if (!session) return;
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const reportId = urlParams.get('id');
+
+            if (!reportId) {
+                window.location.href = 'dashboard.html';
+                return;
+            }
+
+            try {
+                const { data: issue, error } = await supabase
+                    .from('issues')
+                    .select('*')
+                    .eq('id', reportId)
+                    .eq('user_id', session.user.id)
+                    .single();
+
+                if (error) throw error;
+
+                loadingState.style.display = 'none';
+                displayReport(issue);
+
+            } catch (error) {
+                console.error('Error:', error);
+                showToast('Failed to load report', 'error');
+                setTimeout(() => window.location.href = 'dashboard.html', 2000);
+            }
+        }
+
+        function displayReport(issue) {
+            const timelineHTML = `
+                <div style="background: #F3F4F6; padding: 20px; border-radius: 12px; margin: 24px 0;">
+                    <h3 style="margin: 0 0 16px 0; font-size: 18px;">Timeline</h3>
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                            <div>
+                                <strong>Reported</strong>
+                                <p style="margin: 4px 0 0 0; color: #6B7280; font-size: 14px;">${new Date(issue.created_at).toLocaleString()}</p>
+                            </div>
+                        </div>
+                        ${issue.processing_at ? `
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2">
+                                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+                            </svg>
+                            <div>
+                                <strong>Processing Started</strong>
+                                <p style="margin: 4px 0 0 0; color: #6B7280; font-size: 14px;">${new Date(issue.processing_at).toLocaleString()}</p>
+                            </div>
+                        </div>
+                        ` : ''}
+                        ${issue.resolved_at ? `
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                            </svg>
+                            <div>
+                                <strong>Resolved</strong>
+                                <p style="margin: 4px 0 0 0; color: #6B7280; font-size: 14px;">${new Date(issue.resolved_at).toLocaleString()}</p>
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+
+            reportDetail.innerHTML = `
+                <div class="card">
+                    <div style="display: flex; justify-content: between; align-items: start; margin-bottom: 16px;">
+                        <h1 style="margin: 0; font-size: 28px;">${issue.title}</h1>
+                        <span class="status-badge status-${issue.status.toLowerCase()}" style="font-size: 14px; padding: 8px 16px;">${issue.status}</span>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 20px 0;">
+                        <div>
+                            <p style="color: #6B7280; font-size: 14px; margin-bottom: 4px;">Category</p>
+                            <p style="font-weight: 600;">${issue.category}</p>
+                        </div>
+                        <div>
+                            <p style="color: #6B7280; font-size: 14px; margin-bottom: 4px;">Location</p>
+                            <p style="font-weight: 600;">${issue.location}</p>
+                        </div>
+                        ${issue.area ? `
+                        <div>
+                            <p style="color: #6B7280; font-size: 14px; margin-bottom: 4px;">Area</p>
+                            <p style="font-weight: 600;">${issue.area}</p>
+                        </div>
+                        ` : ''}
+                    </div>
+                    
+                    <div style="margin: 20px 0;">
+                        <p style="color: #6B7280; font-size: 14px; margin-bottom: 8px;">Description</p>
+                        <p style="line-height: 1.6;">${issue.description}</p>
+                    </div>
+                    
+                    ${timelineHTML}
+                    
+                    <div style="margin: 24px 0;">
+                        <h3 style="margin: 0 0 16px 0; font-size: 18px;">Photographic Evidence</h3>
+                        <div style="display: grid; grid-template-columns: ${issue.before_image_url && issue.after_image_url ? '1fr 1fr' : '1fr'}; gap: 20px;">
+                            ${issue.before_image_url ? `
+                            <div>
+                                <h4 style="margin: 0 0 12px 0; font-size: 16px; color: #EF4444; font-weight: 600;">Before Resolution</h4>
+                                <img src="${issue.before_image_url}" alt="Before" style="width: 100%; height: 400px; object-fit: cover; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: block;">
+                            </div>
+                            ` : ''}
+                            ${issue.after_image_url ? `
+                            <div>
+                                <h4 style="margin: 0 0 12px 0; font-size: 16px; color: #10B981; font-weight: 600;">After Resolution</h4>
+                                <img src="${issue.after_image_url}" alt="After" style="width: 100%; height: 400px; object-fit: cover; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: block;">
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                    
+                    ${issue.status === 'Resolved' && !issue.satisfaction_status ? `
+                    <div style="background: #FEF3C7; padding: 20px; border-radius: 12px; margin-top: 24px;">
+                        <h3 style="margin: 0 0 12px 0; font-size: 18px; color: #92400E;">Rate This Resolution</h3>
+                        <p style="margin-bottom: 16px; color: #78350F;">Are you satisfied with how this issue was resolved?</p>
+                        <div id="feedbackForm">
+                            <div style="margin-bottom: 16px;">
+                                <label style="display: block; margin-bottom: 8px; font-weight: 600;">Satisfaction</label>
+                                <div style="display: flex; gap: 12px;">
+                                    <button onclick="setSatisfaction('Satisfied')" id="satisfiedBtn" class="btn-primary">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline; vertical-align: middle; margin-right: 4px;">
+                                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                                        </svg>
+                                        Satisfied
+                                    </button>
+                                    <button onclick="setSatisfaction('Not Satisfied')" id="notSatisfiedBtn" class="btn-secondary">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline; vertical-align: middle; margin-right: 4px;">
+                                            <circle cx="12" cy="12" r="10"></circle>
+                                            <line x1="15" y1="9" x2="9" y2="15"></line>
+                                            <line x1="9" y1="9" x2="15" y2="15"></line>
+                                        </svg>
+                                        Not Satisfied
+                                    </button>
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 16px;">
+                                <label style="display: block; margin-bottom: 8px; font-weight: 600;">Rating (1-5 stars)</label>
+                                <input type="number" id="ratingInput" min="1" max="5" class="input" placeholder="Enter 1-5" required>
+                            </div>
+                            <div style="margin-bottom: 16px;">
+                                <label style="display: block; margin-bottom: 8px; font-weight: 600;">Additional Comments (Optional)</label>
+                                <textarea id="feedbackText" class="input textarea" rows="3" placeholder="Share your thoughts..."></textarea>
+                            </div>
+                            <button onclick="submitFeedback('${issue.id}')" class="btn-primary">Submit Feedback</button>
+                        </div>
+                    </div>
+                    ` : ''}
+                    
+                    ${issue.satisfaction_status ? `
+                    <div style="background: #F0FDF4; padding: 20px; border-radius: 12px; margin-top: 24px;">
+                        <h3 style="margin: 0 0 12px 0; font-size: 18px; color: #10B981;">Your Feedback</h3>
+                        <p style="margin: 8px 0;"><strong>Satisfaction:</strong> ${issue.satisfaction_status}</p>
+                        ${issue.satisfaction_rating ? `<p style="margin: 8px 0;"><strong>Rating:</strong> ${'⭐'.repeat(issue.satisfaction_rating)} (${issue.satisfaction_rating}/5)</p>` : ''}
+                        ${issue.feedback_text ? `<p style="margin: 8px 0;"><strong>Your Comment:</strong> ${issue.feedback_text}</p>` : ''}
+                        <p style="margin-top: 12px; font-size: 14px; color: #6B7280;">Thank you for your feedback!</p>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        let selectedSatisfaction = null;
+
+        window.setSatisfaction = (status) => {
+            selectedSatisfaction = status;
+            document.getElementById('satisfiedBtn').style.opacity = status === 'Satisfied' ? '1' : '0.5';
+            document.getElementById('notSatisfiedBtn').style.opacity = status === 'Not Satisfied' ? '1' : '0.5';
+        };
+
+        window.submitFeedback = async (issueId) => {
+            if (!selectedSatisfaction) {
+                showToast('Please select satisfaction status', 'error');
+                return;
+            }
+
+            const rating = parseInt(document.getElementById('ratingInput').value);
+            if (!rating || rating < 1 || rating > 5) {
+                showToast('Please enter a valid rating (1-5)', 'error');
+                return;
+            }
+
+            const feedbackText = document.getElementById('feedbackText').value;
+
+            try {
+                const { error } = await supabase
+                    .from('issues')
+                    .update({
+                        satisfaction_status: selectedSatisfaction,
+                        satisfaction_rating: rating,
+                        feedback_text: feedbackText || null
+                    })
+                    .eq('id', issueId);
+
+                if (error) throw error;
+
+                showToast('Thank you for your feedback!', 'success');
+                setTimeout(() => location.reload(), 1500);
+
+            } catch (error) {
+                console.error('Error:', error);
+                showToast('Failed to submit feedback', 'error');
+            }
+        };
+
+        // Mobile menu
+        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+        const navMenu = document.getElementById('navMenu');
+        
+        if (mobileMenuBtn) {
+            mobileMenuBtn.addEventListener('click', () => {
+                navMenu.classList.toggle('active');
+                mobileMenuBtn.classList.toggle('active');
+            });
+        }
+
+        loadReportDetail();
+    </script>
+</body>
+</html>
